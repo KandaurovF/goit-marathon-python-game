@@ -1,8 +1,8 @@
 import pygame
 import random
 from pygame.constants import QUIT
-from const import WIDTH, HEIGHT, COLOR_BLACK, COLOR_WHITE, ENEMY_SPAWN_PROBABILITY, BONUS_SPAWN_PROBABILITY
-from player import Player
+from const import SCREEN, WIDTH, HEIGHT, COLOR_BLACK, ENEMY_SPAWN_PROBABILITY, BONUS_SPAWN_PROBABILITY
+from player import create_player
 from controls import move_direction
 from enemy import create_enemy
 from bonuses import create_bonus
@@ -14,26 +14,30 @@ FPS = pygame.time.Clock()
 
 FONT = pygame.font.SysFont('Verdana', 20)
 
-main_display = pygame.display.set_mode((WIDTH, HEIGHT))
 
 bg = pygame.transform.scale(pygame.image.load(
     'img/background.png'), (WIDTH, HEIGHT))
 bg_X1 = 0
 bg_X2 = bg.get_width()
-bg_move = 1
+bg_move = 4
 
-player = Player((20, 20), (WIDTH // 2, HEIGHT // 2))
+
+player = create_player()
+
+CHANGE_IMAGE = pygame.USEREVENT+1
+pygame.time.set_timer(CHANGE_IMAGE, 200)
 
 enemies = []
 bonuses = []
+
 score = 0
 
-playing = True
+game_over_stat = False
 
 
 def game_over():
-    global playing
-    playing = False
+    global game_over_stat
+    game_over_stat = True
 
 
 def handle_bonus(bonus):
@@ -49,7 +53,7 @@ def update_objects():
             enemies.remove(enemy)
         if pygame.sprite.collide_rect(player, enemy):
             game_over()
-
+            return
     for bonus in bonuses:
         bonus.move()
         if bonus.is_offscreen():
@@ -59,7 +63,7 @@ def update_objects():
 
 
 def draw_objects():
-    # main_display.fill(COLOR_BLACK)
+    # SCREEN.fill(COLOR_BLACK)
     global bg_X1, bg_X2
     bg_X1 -= bg_move
     bg_X2 -= bg_move
@@ -70,38 +74,54 @@ def draw_objects():
     if bg_X2 < -bg.get_width():
         bg_X2 = bg.get_width()
 
-    main_display.blit(bg, (bg_X1, 0))
-    main_display.blit(bg, (bg_X2, 0))
+    SCREEN.blit(bg, (bg_X1, 0))
+    SCREEN.blit(bg, (bg_X2, 0))
 
     for enemy in enemies:
-        main_display.blit(enemy.surface, enemy.rect)
+        SCREEN.blit(enemy.surface, enemy.rect)
 
     for bonus in bonuses:
-        main_display.blit(bonus.surface, bonus.rect)
+        SCREEN.blit(bonus.surface, bonus.rect)
 
-    main_display.blit(player.surface, player.rect)
+    SCREEN.blit(player.surface, player.rect)
 
-    main_display.blit(FONT.render(str(score), True,
-                      COLOR_WHITE), (WIDTH-50, 20))
+    SCREEN.blit(FONT.render(str(score), True,
+                            COLOR_BLACK), (WIDTH-50, 20))
+    SCREEN.blit(FONT.render(str('Press ESC to Exit'),
+                True, COLOR_BLACK), (30, HEIGHT-50))
 
     pygame.display.flip()
 
 
-while playing:
-    FPS.tick(60)
+while True:
+    FPS.tick(80)
 
     for event in pygame.event.get():
         if event.type == QUIT:
-            playing = False
+            pygame.quit()
+            quit()
+        elif event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_ESCAPE:
+                pygame.quit()
+                quit()
 
-    if random.randint(1, 300) <= ENEMY_SPAWN_PROBABILITY:
-        new_enemy = create_enemy()
-        enemies.append(new_enemy)
+        if event.type == CHANGE_IMAGE:
+            player.change_image()
 
-    if random.randint(1, 500) <= BONUS_SPAWN_PROBABILITY:
-        new_bonus = create_bonus()
-        bonuses.append(new_bonus)
+    if not game_over_stat:
+        if random.randint(1, 200) <= ENEMY_SPAWN_PROBABILITY:
+            new_enemy = create_enemy()
+            enemies.append(new_enemy)
 
-    move_direction(player)
-    update_objects()
-    draw_objects()
+        if random.randint(1, 500) <= BONUS_SPAWN_PROBABILITY:
+            new_bonus = create_bonus()
+            bonuses.append(new_bonus)
+
+        move_direction(player)
+        update_objects()
+        draw_objects()
+    else:
+        SCREEN.blit(FONT.render("GAME OVER", True, COLOR_BLACK),
+                    (WIDTH // 2 - 50, HEIGHT // 2))
+
+        pygame.display.flip()
